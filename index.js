@@ -89,30 +89,44 @@ app.post('/api/users/:_id/exercises' , async (req,res)=>{
   }
 })
 
-app.get('/api/users/:_id/logs' , async (req,res)=>{
-  try{
-    const u = await User.findOne({_id:req.params._id});
-    const allLogs = await Log.find({userId : req.params._id})
-    const logArray = [] 
-    allLogs.map((l)=>{
-      logArray.push({
-        description: l.description,
-        duration: l.duration,
-        date: l.date.toDateString(),
-      })
-    })
+app.get('/api/users/:_id/logs', async (req, res) => {
+  try {
+    const { from, to, limit } = req.query;
+    const u = await User.findOne({ _id: req.params._id });
+    
+    let dateFilter = {};
+    if (from || to) {
+      dateFilter.date = {};
+      if (from) {
+        dateFilter.date.$gte = new Date(from); 
+      }
+      if (to) {
+        dateFilter.date.$lte = new Date(to); 
+      }
+    }
+    let query = Log.find({ userId: req.params._id, ...dateFilter });
+    if (limit) {
+      query = query.limit(parseInt(limit));
+    }
+    const allLogs = await query;
+
+    const logArray = allLogs.map((l) => ({
+      description: l.description,
+      duration: l.duration,
+      date: l.date.toDateString(),
+    }));
+
     res.json({
-      username:u.username,
-      count:logArray.length,
-      _id:u._id,
-      log:logArray
-    })
+      username: u.username,
+      count: logArray.length,
+      _id: u._id,
+      log: logArray,
+    });
+  } catch (err) {
+    res.status(500).json({ err });
   }
-  catch(err)
-  {
-    res.json(err)
-  }
-})
+});
+
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
