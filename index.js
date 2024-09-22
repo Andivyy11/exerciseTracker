@@ -93,22 +93,33 @@ app.get('/api/users/:_id/logs', async (req, res) => {
   try {
     const { from, to, limit } = req.query;
     const u = await User.findOne({ _id: req.params._id });
+    if (!u) {
+      return res.status(404).json({ error: "User not found" });
+    }
     
     let dateFilter = {};
     if (from || to) {
       dateFilter.date = {};
       if (from) {
-        dateFilter.date.$gte = new Date(from); 
+        const fromDate = new Date(from);
+        if (!isNaN(fromDate)) {
+          dateFilter.date.$gte = fromDate;
+        }
       }
       if (to) {
-        dateFilter.date.$lte = new Date(to); 
+        const toDate = new Date(to);
+        if (!isNaN(toDate)) {
+          dateFilter.date.$lte = toDate;
+        }
       }
     }
+
     let query = Log.find({ userId: req.params._id, ...dateFilter });
     if (limit) {
       query = query.limit(parseInt(limit));
     }
-    const allLogs = await query;
+
+    const allLogs = await query.sort({ date: 1 }); 
 
     const logArray = allLogs.map((l) => ({
       description: l.description,
@@ -126,7 +137,6 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     res.status(500).json({ err });
   }
 });
-
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
